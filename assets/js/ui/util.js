@@ -150,6 +150,29 @@
     U.openModal(`WHY? <span class="muted" style="font-weight:500">${esc(PA.EFFECT[m.effect] ? PA.EFFECT[m.effect].name : '')}</span>`, body);
   };
 
+  /* ---------------- Measured binding affinity (Ki) ---------------- */
+  U.ki = (d, rid) => (PA.kiFor ? PA.kiFor(d.id, rid) : null);
+  U.hasKi = d => !!(PA.KI && PA.KI[d.id]);
+  /* log scale: 0.01 nM → 100 %, 1 nM → 67 %, 100 nM → 33 %, 10 µM → 4 % */
+  U.kiPct = ki => Math.max(4, Math.min(100, (4 - Math.log10(ki)) / 6 * 100));
+  U.kiSrc = key => { const s = PA.KI_SRC[key]; return s ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>` : ''; };
+  U.kiCard = function (d) {
+    const K = PA.KI && PA.KI[d.id]; if (!K) return '';
+    const rows = K.rows.slice().sort((a, b) => PA.kiValue(a) - PA.kiValue(b));
+    const srcs = U.uniq(rows.map(x => x.src).filter(Boolean));
+    return `<div class="card"><h3>Measured binding affinity (K<sub>i</sub>)</h3>
+      <p class="small muted" style="margin-top:0">Lower K<sub>i</sub> = tighter binding. Bar is on a log scale.</p>
+      <div class="kitable" role="table" aria-label="Ki values for ${esc(d.name)}">${rows.map(x => {
+        const v = PA.kiValue(x); const R = x.r && PA.RECEPTOR[x.r]; const col = R ? (PA.NT[R.nt] || PA.NT.OTHER).color : 'var(--nt-OTHER)';
+        const name = x.lbl || (x.r ? PA.rl(x.r) : '');
+        return `<div class="kirow" role="row"><span class="kiname" role="rowheader">${x.r && R && !x.lbl ? U.recLink(x.r) : esc(name)}</span>
+          <span class="kibar" role="cell"><i style="width:${(x.gt ? 3 : U.kiPct(v)).toFixed(0)}%;background:${col}"></i></span>
+          <span class="kival mono" role="cell">${esc(PA.kiText(x))} nM${x.note ? ` <span class="muted">(${esc(x.note)})</span>` : ''}${x.src ? ' †' : ''}</span></div>`; }).join('')}</div>
+      ${K.note ? `<p class="small" style="margin:.6em 0 0">${esc(K.note)}</p>` : ''}
+      ${K.rangeOnly ? '<p class="small muted" style="margin:.6em 0 0">The label reports only ranges for groups of receptors, not one number per receptor.</p>' : ''}
+      <p class="small muted" style="margin:.6em 0 0">Source: ${U.kiSrc(K.src)}${srcs.map(k => `<br>† ${U.kiSrc(k)}`).join('')}</p></div>`;
+  };
+
   /* ---------------- Receptor fingerprint (bars) ---------------- */
   U.fingerprint = function (d, opts) {
     opts = opts || {};
@@ -160,15 +183,16 @@
       const t = U.drugTarget(d, rid);
       const r = PA.RECEPTOR[rid];
       const color = r ? (PA.NT[r.nt] || PA.NT.OTHER).color : 'var(--nt-OTHER)';
-      const w = t ? t.aff * 25 : 0;
+      const k = t ? U.ki(d, rid) : null;
+      const w = k ? U.kiPct(PA.kiValue(k)) : t ? t.aff * 25 : 0;
       const isHl = hl.has(rid);
       html += `<div class="rn ${isHl ? 'hl' : ''}" role="rowheader"><a href="#/receptors/${encodeURIComponent(rid)}" style="color:inherit">${esc(PA.rl(rid))}</a></div>
-        <div class="bar ${isHl ? 'hl' : ''} ${hl.size && !isHl ? 'dimmed' : ''}" role="cell" title="${t ? esc(U.actLabel(t.action) + ' — ' + PA.AFFINITY[t.aff].label + ' relative affinity') : 'No meaningful affinity'}"><i style="width:${w}%;background:${color}${t && t.action === 'partial' ? ';background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(0,0,0,.25) 4px 7px)' : ''}"></i></div>
-        <div class="act" role="cell">${t ? `${U.actGlyph(t.action)} ${t.aff}/4${t.primary ? ' ★' : ''}` : '—'}</div>`;
+        <div class="bar ${isHl ? 'hl' : ''} ${hl.size && !isHl ? 'dimmed' : ''}" role="cell" title="${t ? esc(U.actLabel(t.action) + ' — ' + (k ? 'Ki ' + PA.kiText(k) + ' nM' : PA.AFFINITY[t.aff].label + ' relative affinity (no measured Ki loaded)')) : 'No meaningful affinity'}"><i style="width:${w}%;background:${color}${t && t.action === 'partial' ? ';background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(0,0,0,.25) 4px 7px)' : ''}"></i></div>
+        <div class="act" role="cell">${t ? `${U.actGlyph(t.action)} ${k ? `<span class="mono">${esc(PA.kiText(k))}</span> nM` : t.aff + '/4'}${t.primary ? ' ★' : ''}` : '—'}</div>`;
     });
     return html + '</div>';
   };
-  U.fpLegend = () => `<div class="act-legend small">${['antagonist', 'inverse', 'agonist', 'partial', 'inhibitor', 'releaser', 'pam', 'blocker', 'ligand'].map(a => `<span><b>${PA.ACTIONS[a].glyph}</b> ${PA.ACTIONS[a].label}</span>`).join('')}<span><b>★</b> primary target</span></div><p class="small muted" style="margin-top:6px">Bar length = qualitative relative affinity (1–4) synthesised from published binding data. <b>Not</b> receptor occupancy. Hatched bars = partial agonism.</p>`;
+  U.fpLegend = () => `<div class="act-legend small">${['antagonist', 'inverse', 'agonist', 'partial', 'inhibitor', 'releaser', 'pam', 'blocker', 'ligand'].map(a => `<span><b>${PA.ACTIONS[a].glyph}</b> ${PA.ACTIONS[a].label}</span>`).join('')}<span><b>★</b> primary target</span></div><p class="small muted" style="margin-top:6px">Where a value is shown in nM it is a measured K<sub>i</sub> (lower = tighter binding) and the bar is on a log scale. Where it shows n/4 it is a qualitative grade (1–4) from published binding data. Neither is receptor occupancy. Hatched bars = partial agonism.</p>`;
 
   /* ---------------- Radial target map ---------------- */
   U.radial = function (d, opts) {
@@ -184,7 +208,7 @@
     ts.forEach((t, i) => {
       const [x, y] = pos(i);
       const r = PA.RECEPTOR[t.r]; const col = r ? (PA.NT[r.nt] || PA.NT.OTHER).color : 'var(--nt-OTHER)';
-      const label = (t.primary ? '★ ' : '') + PA.rl(t.r), sub = `${U.actGlyph(t.action)} ${SHORT[t.aff]}`;
+      const kr = U.ki(d, t.r); const label = (t.primary ? '★ ' : '') + PA.rl(t.r), sub = `${U.actGlyph(t.action)} ${kr ? 'Ki ' + PA.kiText(kr) + ' nM' : SHORT[t.aff]}`;
       const w = Math.max(64, 14 + 7.2 * Math.max(label.length, sub.length)) + t.aff * 3, h = 40 + t.aff * 2;
       const shape = (PA.ACTIONS[t.action] || {}).shape;
       const box = (rx, extra) => `<rect class="tshape" x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${rx}" fill="var(--surface)" stroke="${col}" stroke-width="2.5" ${extra || ''}/>`;

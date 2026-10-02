@@ -41,7 +41,13 @@
     const litIds = Object.keys(lit);
     const projections = opts.projections === 'all' ? PA.PROJECTIONS : (opts.projections || []);
     const nts = U.uniq(projections.map(p => p.nt));
-    let s = `<svg viewBox="0 0 1000 640" role="group" aria-label="${esc(opts.label || 'Schematic brain map')}">`;
+    // simple mode: hide tiny nuclei and container outlines unless they matter for what is shown
+    const endpoints = new Set(projections.flatMap(p => [p.from, p.to]));
+    const keep = r => lit[r.id] || opts.selected === r.id || endpoints.has(r.id) || (opts.keep || []).includes(r.id);
+    const SOLID = ['vstriatum', 'hypothalamus'];
+    const hidden = r => opts.simple && !keep(r) && (r.small || (r.umbrella && !SOLID.includes(r.id)));
+    const solid = r => opts.simple && SOLID.includes(r.id);
+    let s = `<svg viewBox="${opts.simple ? '110 30 790 615' : '0 0 1000 640'}" class="${opts.simple ? 'simple' : ''}" role="group" aria-label="${esc(opts.label || 'Schematic brain map')}">`;
     s += `<defs>${Object.values(PA.NT).map(n => `<marker id="arr-${n.id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:${n.color}"/></marker>`).join('')}
       <radialGradient id="glow" r="0.5"><stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></radialGradient></defs>`;
     s += `<path class="brain-outline" d="${OUTLINE.temporal}" opacity=".75"/>`;
@@ -73,20 +79,22 @@
     s += `<g class="regions">`;
     order.forEach(r => {
       if (opts.hideNuclei && r.group === 'Hypothalamic nuclei') return;
+      if (hidden(r)) return;
       const L = lit[r.id];
-      const cls = ['region', r.umbrella ? 'umbrella' : '', r.small ? 'small' : '', opts.selected === r.id ? 'selected' : '', L ? 'lit' : '', opts.dimOthers && litIds.length && !L && opts.selected !== r.id ? 'dim' : ''].join(' ');
+      const umb = r.umbrella && !solid(r);
+      const cls = ['region', umb ? 'umbrella' : '', r.small ? 'small' : '', opts.selected === r.id ? 'selected' : '', L ? 'lit' : '', opts.dimOthers && litIds.length && !L && opts.selected !== r.id ? 'dim' : ''].join(' ');
       const style = L && L.color ? ` style="--lit:${L.color}"` : '';
       let shape = regionShape(r);
-      if (L && L.color) shape = shape.replace('class="shape"', `class="shape" style="stroke:${L.color};fill:color-mix(in srgb, ${L.color} ${r.umbrella ? 6 : (L.strength ? 12 + L.strength * 9 : 30)}%, ${r.umbrella ? 'transparent' : 'var(--region-fill)'})"`);
-      const glow = L && !r.umbrella && !U.reduced() ? `<circle cx="${r.x}" cy="${r.y}" r="${(r.r || Math.max(r.rx, r.ry)) + 18}" fill="url(#glow)" aria-hidden="true"/>` : '';
-      const lx = r.umbrella ? r.x - (r.rx || 0) + 8 : r.x;
-      const ly = r.umbrella ? r.y - (r.ry || 0) + 14 : r.y + 4;
-      const anchor = r.umbrella ? 'start' : 'middle';
+      if (L && L.color) shape = shape.replace('class="shape"', `class="shape" style="stroke:${L.color};fill:color-mix(in srgb, ${L.color} ${umb ? (opts.simple ? 0 : 6) : (L.strength ? 12 + L.strength * 9 : 30)}%, ${umb ? 'transparent' : 'var(--region-fill)'})"`);
+      const glow = L && !umb && !opts.simple && !U.reduced() ? `<circle cx="${r.x}" cy="${r.y}" r="${(r.r || Math.max(r.rx, r.ry)) + 18}" fill="url(#glow)" aria-hidden="true"/>` : '';
+      const lx = umb ? r.x - (r.rx || 0) + 8 : r.x;
+      const ly = umb ? r.y - (r.ry || 0) + 14 : r.y + 4;
+      const anchor = umb ? 'start' : 'middle';
       const label = r.umbrella ? r.abbr : r.abbr;
       s += `<g class="${cls}" data-region="${r.id}" tabindex="0" role="button" aria-pressed="${opts.selected === r.id}" aria-label="${esc(r.name)}${L && L.badge ? ' — ' + esc(L.badge) : ''}"${style}>
         <title>${esc(r.name)}${L && L.badge ? ' — ' + esc(L.badge) : ''}</title>${glow}${shape}
         <text class="lbl" x="${lx}" y="${ly}" text-anchor="${anchor}">${esc(label)}</text>`;
-      if (L && L.badge && !r.umbrella && (!r.small || opts.smallBadges)) {
+      if (L && L.badge && opts.badges !== false && !umb && (!r.small || opts.smallBadges)) {
         const bw = Math.min(150, 8 + L.badge.length * 5.6);
         const by = r.y - (r.r || r.ry) - 18;
         s += `<rect class="badge-bg" x="${r.x - bw / 2}" y="${by - 11}" width="${bw}" height="15" rx="4"/><text class="badge-tx" x="${r.x}" y="${by}" text-anchor="middle">${esc(L.badge)}</text>`;

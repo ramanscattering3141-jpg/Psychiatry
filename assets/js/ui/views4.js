@@ -58,7 +58,7 @@
       <div id="sinsight" aria-live="polite"></div>
       <div class="card sorter-card"><div class="sorter-scroll"><div id="sgrid" class="sorter" role="table" aria-label="Sortable drug table"></div></div>
         <div class="sorter-legend small">${[4, 3, 2, 1].map(a => `<span><i class="dot a${a}"></i>${PA.AFFINITY[a].label}</span>`).join('')}<span><b>⊣</b> antagonist</span><span><b>◐</b> partial agonist</span><span><b>✕</b> inhibitor</span><span><b>→</b> agonist</span><span><b>⊕</b> PAM</span>
-        <span class="muted">Circle size & intensity = qualitative relative affinity (not occupancy). Side-effect pips = 0–3 clinical rating.</span></div></div>`;
+        <span class="muted">Circle size & intensity = qualitative relative affinity (not occupancy). For antipsychotics the small number under each circle is the measured Ki in nM, and sorting by a receptor ranks by Ki (drugs without a measured value go last). Side-effect pips = 0–3 clinical rating.</span></div></div>`;
     const grid = el.querySelector('#sgrid');
     const cols = () => (cls === 'all' ? U.uniq(PA.DRUGS.flatMap(d => U.targets(d).map(t => t.r))).slice(0, 16) : CLASS_COLS[cls] || []);
     const drugs = () => PA.DRUGS.filter(d => (cls === 'all' || d.cls === cls) && !d.substance);
@@ -67,15 +67,21 @@
       if (key === 'name') return d.name;
       if (key === 'ratio') { const a = (U.drugTarget(d, '5HT2A') || {}).aff || 0, b = (U.drugTarget(d, 'D2') || {}).aff || 0; return a - b; }
       if (key === 'hl') return halfLifeHours(d);
-      if (key.startsWith('r:')) { const t = U.drugTarget(d, key.slice(2)); return t ? t.aff : 0; }
+      if (key.startsWith('r:')) {
+        const t = U.drugTarget(d, key.slice(2));
+        if (useKi()) { const k = t && U.ki(d, key.slice(2)); return k ? -Math.log10(PA.kiValue(k)) : null; }
+        return t ? t.aff : 0;
+      }
       if (key.startsWith('ae:')) return (d.ae || {})[key.slice(3)];
       return 0;
     }
+    /* rank antipsychotics by measured Ki (as pKi) when sorting by a receptor */
+    const useKi = () => cls === 'antipsychotic';
     function label(key) {
       if (key === 'name') return 'Name';
       if (key === 'ratio') return '5-HT2A − D2 index';
       if (key === 'hl') return 'Half-life';
-      if (key.startsWith('r:')) return PA.rl(key.slice(2)) + ' affinity';
+      if (key.startsWith('r:')) return PA.rl(key.slice(2)) + (useKi() ? ' Ki (nM)' : ' affinity');
       return (PA.AE_KEYS.find(k => k.k === key.slice(3)) || {}).label;
     }
     function fillSelect() {
@@ -90,16 +96,19 @@
 
     function rowHtml(d, rank, maxV) {
       const v = value(d, sortKey);
-      const pct = sortKey === 'name' ? 0 : v == null ? 0 : sortKey === 'hl' ? Math.min(100, Math.log10(1 + v) / Math.log10(1 + maxV) * 100) : sortKey === 'ratio' ? (v + 4) / 8 * 100 : sortKey.startsWith('ae:') ? v / 3 * 100 : v / 4 * 100;
-      const vtxt = sortKey === 'name' ? '' : v == null ? '—' : sortKey === 'hl' ? (v >= 48 ? (v / 24).toFixed(v / 24 < 10 ? 1 : 0) + ' d' : v.toFixed(v < 10 ? 1 : 0) + ' h') : sortKey === 'ratio' ? (v > 0 ? '+' : '') + v : sortKey.startsWith('r:') ? (v ? PA.AFFINITY[v].label : 'none') : ['none', 'low', 'mod', 'high'][v];
+      const kiMode = sortKey.startsWith('r:') && useKi();
+      const pct = sortKey === 'name' ? 0 : v == null ? 0 : kiMode ? U.kiPct(Math.pow(10, -v)) : sortKey === 'hl' ? Math.min(100, Math.log10(1 + v) / Math.log10(1 + maxV) * 100) : sortKey === 'ratio' ? (v + 4) / 8 * 100 : sortKey.startsWith('ae:') ? v / 3 * 100 : v / 4 * 100;
+      const kiRow = kiMode && U.ki(d, sortKey.slice(2));
+      const t0 = kiMode && U.drugTarget(d, sortKey.slice(2));
+      const vtxt = sortKey === 'name' ? '' : kiMode ? (kiRow ? PA.kiText(kiRow) + ' nM' : t0 ? 'no Ki · ' + PA.AFFINITY[t0.aff].label : 'none') : v == null ? '—' : sortKey === 'hl' ? (v >= 48 ? (v / 24).toFixed(v / 24 < 10 ? 1 : 0) + ' d' : v.toFixed(v < 10 ? 1 : 0) + ' h') : sortKey === 'ratio' ? (v > 0 ? '+' : '') + v : sortKey.startsWith('r:') ? (v ? PA.AFFINITY[v].label : 'none') : ['none', 'low', 'mod', 'high'][v];
       const barCls = sortKey.startsWith('ae:') ? 'warm' : sortKey === 'ratio' ? 'violet' : '';
       const d2 = U.drugTarget(d, 'D2');
       return `<div class="srow" role="row" data-id="${d.id}">
         <div class="scell rank" role="cell">${rank}</div>
         <div class="scell sname" role="rowheader"><a href="#/drug/${d.id}">${esc(d.name.split(' (')[0])}</a><span class="ssub">${esc(d.sub)}${cls === 'antipsychotic' ? ` · D2 ${d2 ? U.actGlyph(d2.action) : '∅'}` : ''}</span></div>
         <div class="scell sval" role="cell"><div class="sbar ${barCls}"><i style="--w:${pct.toFixed(0)}%${sortKey.startsWith('ae:') && v != null ? ';background:' + ['var(--good)', 'var(--good)', 'var(--warn)', 'var(--bad)'][v] : ''}"></i></div><span class="mono">${esc(vtxt)}</span></div>
-        ${cols().map(r => { const t = U.drugTarget(d, r); const R = PA.RECEPTOR[r]; const col = (PA.NT[R.nt] || PA.NT.OTHER).color;
-          return `<div class="scell rc ${hl.includes(r) ? 'hl' : ''} ${sortKey === 'r:' + r ? 'sorted' : ''}" role="cell" title="${t ? esc(`${d.name}: ${U.actLabel(t.action)} at ${PA.rl(r)} — ${PA.AFFINITY[t.aff].label}`) : 'no meaningful affinity'}">${t ? `<span class="aff a${t.aff}" style="--c:${col}"><b>${U.actGlyph(t.action)}</b></span>` : '<span class="none">·</span>'}</div>`; }).join('')}
+        ${cols().map(r => { const t = U.drugTarget(d, r); const R = PA.RECEPTOR[r]; const k = t && useKi() && U.ki(d, r); const col = (PA.NT[R.nt] || PA.NT.OTHER).color;
+          return `<div class="scell rc ${hl.includes(r) ? 'hl' : ''} ${sortKey === 'r:' + r ? 'sorted' : ''}" role="cell" title="${t ? esc(`${d.name}: ${U.actLabel(t.action)} at ${PA.rl(r)} — ${k ? 'Ki ' + PA.kiText(k) + ' nM' : PA.AFFINITY[t.aff].label}`) : 'no meaningful affinity'}">${t ? `<span class="aff a${t.aff}" style="--c:${col}"><b>${U.actGlyph(t.action)}</b></span>${k ? `<span class="kin mono">${esc(PA.kiText(k))}</span>` : ''}` : '<span class="none">·</span>'}</div>`; }).join('')}
         ${AE_SHOW.map(k => { const x = (d.ae || {})[k]; return `<div class="scell ae ${sortKey === 'ae:' + k ? 'sorted' : ''}" role="cell" title="${esc(PA.AE_KEYS.find(y => y.k === k).label)}: ${['none', 'low', 'moderate', 'high'][x] || '—'}"><span class="pips p${x}">${[1, 2, 3].map(i => `<i class="${i <= x ? 'on' : ''}"></i>`).join('')}</span></div>`; }).join('')}
       </div>`;
     }

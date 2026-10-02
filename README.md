@@ -41,6 +41,7 @@ Global search (press `/`) covers regions, receptors (`H1`, `D2`, `α2`, `mu`…)
 ## Design principles
 
 * **Evidence tags on every mechanism.** Each chain carries one of: *Established pharmacology*, *Strong experimental evidence*, *Clinical association*, *Proposed mechanism*, *Mechanism incompletely understood*, *Simplified teaching model*. Effects without a single-receptor explanation are labelled as such; the app doesn't invent one.
+* **Measured Ki for antipsychotics.** `assets/js/data/ki.js` holds in-vitro Ki values (nM) for 13 antipsychotics, taken from each drug's prescribing information (or the original pharmacology paper), with the source shown beside every table. Where a source gives only ranges or nothing (risperidone, paliperidone, haloperidol, chlorpromazine, xanomeline), the qualitative 1–4 grade is kept and labelled as such.
 * **No fake precision.** Receptor fingerprints use qualitative 1–4 affinity grades, not occupancy. The dose explorers show Low/Moderate/High *conceptual* engagement and say so. The only numerical occupancy values cited are from PET studies (Kapur 2000; Meyer 2004; Volkow 1998).
 * **Not "one transmitter = one disease".** Depression ≠ low serotonin, and schizophrenia ≠ too much dopamine. Simplified models are flagged.
 * **Motion with purpose.** Mechanism chains cascade in step by step, bars and meters grow, highlighted regions pulse, transmitter flow is animated along projections, and sorted rows glide to their new rank. All of it switches off under the reduced-motion toggle or `prefers-reduced-motion`.

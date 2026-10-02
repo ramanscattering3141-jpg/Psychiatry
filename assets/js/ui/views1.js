@@ -46,34 +46,59 @@
     const sel = params[0] && PA.REGION[params[0]] ? params[0] : null;
     const placeId = params[0] === 'place' ? params[1] : (U.store.get('placedDrug', null));
     const placed = placeId && PA.DRUG[placeId] ? PA.DRUG[placeId] : null;
-    let ntFilter = U.store.get('atlasNT', ['DA', '5HT', 'NE']);
-    el.innerHTML = head('A · Brain Atlas', 'Functional brain map', 'A schematic functional neuroanatomy map optimised for teaching (not MRI-accurate). Lateral structures are projected onto a mid-sagittal view. Click a region, filter projections, or <b>put a drug on the brain</b>.') +
-      `<div class="split"><div>
-        <div class="card tight" style="margin-bottom:10px"><div class="row">
-          <label for="place" class="small"><b>Put a drug on the brain:</b></label>
-          <input id="place" list="druglist" placeholder="e.g. mirtazapine, risperidone, bupropion" style="flex:1;min-width:200px;padding:6px 10px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--text)" value="${placed ? esc(placed.name) : ''}">
-          <datalist id="druglist">${PA.DRUGS.map(d => `<option value="${esc(d.name)}">`).join('')}</datalist>
-          ${placed ? '<button class="btn small" id="clearplace">Clear</button>' : ''}</div>
-          <div class="row" style="margin-top:8px"><span class="small muted">Projections:</span>${Object.keys(PA.NT_SYSTEMS).map(k => `<button class="chip" data-nt="${k}" aria-pressed="${ntFilter.includes(k)}">${U.ntDot(k)}${esc(PA.NT[k].short)}</button>`).join('')}</div></div>
+    let nt = U.store.get('atlasNT1', null);
+    if (nt && !PA.NT_SYSTEMS[nt]) nt = null;
+    let detail = U.store.get('atlasDetail', false);
+    el.innerHTML = head('A · Brain Atlas', 'Functional brain map', 'A schematic teaching map (not MRI-accurate): lateral structures are projected onto a mid-sagittal view. Click a region to see what it does and what connects to it, show one transmitter pathway at a time, or <b>put a drug on the brain</b>.') +
+      `<div class="split atlas-split"><div>
+        <div class="card tight" style="margin-bottom:10px">
+          <div class="row"><label for="place" class="small"><b>Put a drug on the brain</b></label>
+            <input id="place" class="inp" list="druglist" placeholder="e.g. mirtazapine, risperidone, bupropion" style="flex:1;min-width:200px" value="${placed ? esc(placed.name) : ''}">
+            <datalist id="druglist">${PA.DRUGS.map(d => `<option value="${esc(d.name)}">`).join('')}</datalist>
+            ${placed ? '<button class="btn small" id="clearplace">Clear</button>' : ''}</div>
+          <div class="atlas-bar" style="margin-top:10px">
+            <span class="lbl-s">Pathway</span>
+            <div class="chips" id="ntpick"><button class="chip" data-nt="" aria-pressed="${!nt}">None</button>${Object.keys(PA.NT_SYSTEMS).map(k => `<button class="chip" data-nt="${k}" aria-pressed="${nt === k}">${U.ntDot(k)}${esc(PA.NT[k].short)}</button>`).join('')}</div>
+            <span class="spacer"></span>
+            <span class="lbl-s">Detail</span><div class="seg" id="detail"><button data-d="0" aria-pressed="${!detail}">Simple</button><button data-d="1" aria-pressed="${detail}">All nuclei</button></div>
+          </div></div>
         <div id="map"></div>
-        <details class="card" style="margin-top:12px"><summary><b>Text list of all regions</b> (accessible alternative)</summary>${PA.Brain.textList()}</details>
+        <p class="atlas-caption" id="cap" aria-live="polite"></p>
+        <details class="card" style="margin-top:10px"><summary><b>Text list of all regions</b> (accessible alternative)</summary>${PA.Brain.textList()}</details>
       </div><div id="panel" class="sticky"></div></div>`;
-    const map = el.querySelector('#map'), panel = el.querySelector('#panel');
+    const map = el.querySelector('#map'), panel = el.querySelector('#panel'), cap = el.querySelector('#cap');
     function draw() {
-      let lit = {}, projections = PA.PROJECTIONS.filter(p => ntFilter.includes(p.nt));
+      let lit = {}, projections = [], keep = [], caption = '';
       if (placed) {
         const rm = U.regionsForDrug(placed);
         Object.entries(rm).forEach(([rid, ts]) => {
           const best = ts.slice().sort((a, b) => b.aff - a.aff)[0];
           const rec = PA.RECEPTOR[best.r];
-          lit[rid] = { color: (PA.NT[rec.nt] || PA.NT.OTHER).color, strength: best.aff, badge: ts.sort((a, b) => b.aff - a.aff).slice(0, 2).map(t => `${PA.rl(t.r)} ${U.actGlyph(t.action)}`).join(' · ') + (ts.length > 2 ? ` +${ts.length - 2}` : '') };
+          lit[rid] = { color: (PA.NT[rec.nt] || PA.NT.OTHER).color, strength: best.aff, badge: ts.map(t => PA.rl(t.r)).join(', ') };
+        });
+        // simple view: fold the tiny hypothalamic nuclei into the hypothalamus
+        if (!detail) Object.keys(lit).forEach(rid => {
+          if (PA.REGION[rid].group !== 'Hypothalamic nuclei') return;
+          const h = lit.hypothalamus;
+          if (!h || lit[rid].strength > h.strength) lit.hypothalamus = Object.assign({}, lit[rid]);
+          delete lit[rid];
         });
         const circs = U.circuitsForDrug(placed);
-        projections = PA.PROJECTIONS.filter(p => circs.includes(p.circuit) || ntFilter.includes(p.nt) && false);
-        if (!projections.length) projections = PA.PROJECTIONS.filter(p => ntFilter.includes(p.nt));
-      }
-      PA.Brain.render(map, { selected: sel, lit, dimOthers: !!placed, projections, label: placed ? `${placed.name} placed on the brain` : 'Brain atlas', onSelect: id => { location.hash = '#/atlas/' + id; } });
-      panel.innerHTML = sel ? regionPanel(PA.REGION[sel]) : placed ? placePanel(placed) : `<div class="card"><h3>Select a region</h3><p class="muted">Click or tab to any structure. Each region lists its transmitters, projections, receptor populations, functions, disorders and the medications acting there.</p><h4>Try</h4><div class="chips">${['nac', 'vta', 'lc', 'draphe', 'pituitary', 'amygdala', 'tmn', 'dlpfc'].map(id => `<a class="chip" href="#/atlas/${id}">${esc(PA.REGION[id].name)}</a>`).join('')}</div><h4 style="margin-top:12px">Or place a drug</h4><div class="chips">${['mirtazapine', 'risperidone', 'bupropion', 'clozapine', 'methylphenidate', 'suvorexant'].map(id => `<a class="chip" href="#/atlas/place/${id}">${esc(PA.DRUG[id].name)}</a>`).join('')}</div></div>`;
+        projections = PA.PROJECTIONS.filter(p => circs.includes(p.circuit));
+        caption = `${placed.name}: coloured regions express its targets (colour = transmitter of the strongest target). Arrows = circuits it acts on. Hover a region for the receptors involved.`;
+      } else if (sel) {
+        projections = PA.PROJECTIONS.filter(p => (p.from === sel || p.to === sel) && (!nt || p.nt === nt));
+        projections.forEach(p => { const o = p.from === sel ? p.to : p.from; lit[o] = { color: (PA.NT[p.nt] || PA.NT.OTHER).color, strength: 1 }; });
+        const R = PA.REGION[sel];
+        caption = projections.length ? `${R.name}: ${projections.length} mapped connection${projections.length > 1 ? 's' : ''}${nt ? ' (' + PA.NT[nt].name + ' only)' : ''}. Connected regions are coloured; everything else is dimmed.` : `${R.name}: no mapped projections${nt ? ' for ' + PA.NT[nt].name : ''} in this schematic.`;
+      } else if (nt) {
+        projections = PA.PROJECTIONS.filter(p => p.nt === nt);
+        projections.forEach(p => { lit[p.from] = { color: PA.NT[nt].color, strength: 3 }; });
+        caption = `${PA.NT_SYSTEMS[nt].title}: filled regions are where the cell bodies sit; arrows show where they project.`;
+      } else caption = 'Click any region. Choose a pathway above to draw one transmitter system at a time.';
+      PA.Brain.render(map, { selected: sel, lit, keep, simple: !detail, badges: false, dimOthers: !!placed || !!sel || !!nt, projections, label: placed ? `${placed.name} placed on the brain` : 'Brain atlas', onSelect: id => { location.hash = '#/atlas/' + id; } });
+      cap.textContent = caption;
+      panel.innerHTML = sel ? regionPanel(PA.REGION[sel]) : placed ? placePanel(placed) : `<div class="card"><h3>Select a region</h3><p class="muted">Click or tab to any structure to see its transmitters, connections, receptors, functions, disorders and the medications acting there.</p><h4>Try</h4><div class="chips">${['nac', 'vta', 'lc', 'draphe', 'pituitary', 'amygdala', 'tmn', 'dlpfc'].map(id => `<a class="chip" href="#/atlas/${id}">${esc(PA.REGION[id].name)}</a>`).join('')}</div><h4 style="margin-top:12px">Or place a drug</h4><div class="chips">${['mirtazapine', 'risperidone', 'bupropion', 'clozapine', 'methylphenidate', 'suvorexant'].map(id => `<a class="chip" href="#/atlas/place/${id}">${esc(PA.DRUG[id].name)}</a>`).join('')}</div></div>`;
     }
     el.querySelector('#place').addEventListener('change', e => {
       const v = e.target.value.toLowerCase().trim();
@@ -81,9 +106,16 @@
       if (d) { U.store.set('placedDrug', d.id); location.hash = '#/atlas/place/' + d.id; }
     });
     const cp = el.querySelector('#clearplace'); if (cp) cp.addEventListener('click', () => { U.store.set('placedDrug', null); location.hash = '#/atlas'; });
-    el.querySelectorAll('[data-nt]').forEach(b => b.addEventListener('click', () => {
-      const k = b.dataset.nt; ntFilter = ntFilter.includes(k) ? ntFilter.filter(x => x !== k) : ntFilter.concat(k);
-      U.store.set('atlasNT', ntFilter); b.setAttribute('aria-pressed', ntFilter.includes(k)); draw();
+    el.querySelectorAll('#ntpick [data-nt]').forEach(b => b.addEventListener('click', () => {
+      nt = b.dataset.nt || null; U.store.set('atlasNT1', nt);
+      el.querySelectorAll('#ntpick [data-nt]').forEach(x => x.setAttribute('aria-pressed', (x.dataset.nt || null) === nt));
+      if (placed) { U.store.set('placedDrug', null); location.hash = sel ? '#/atlas/' + sel : '#/atlas'; return; }
+      draw();
+    }));
+    el.querySelectorAll('#detail [data-d]').forEach(b => b.addEventListener('click', () => {
+      detail = b.dataset.d === '1'; U.store.set('atlasDetail', detail);
+      el.querySelectorAll('#detail [data-d]').forEach(x => x.setAttribute('aria-pressed', (x.dataset.d === '1') === detail));
+      draw();
     }));
     if (params[0] === 'place' && placed) U.store.set('placedDrug', placed.id);
     draw();
@@ -104,19 +136,30 @@
       <h4 style="margin-top:12px">Psychiatric functions</h4><ul class="bul">${(r.functions || []).map(f => `<li>${esc(f)}</li>`).join('')}</ul>
       <h4 style="margin-top:12px">Relevant disorders</h4><ul class="bul">${(r.disorders || []).map(f => `<li>${esc(f)}</li>`).join('')}</ul>
       ${circs.length ? `<h4 style="margin-top:12px">Circuits</h4><div class="chips">${circs.map(c => `<a class="chip" href="#/circuits/${c.id}">${esc(c.name)}</a>`).join('')}</div>` : ''}
-      ${drugsBy.length ? `<h4 style="margin-top:12px">Medications acting here (high-affinity targets)</h4>${drugsBy.map(x => `<p class="small" style="margin:.3em 0"><b>${U.recLink(x.rid)}</b>: ${x.ds.map(y => `${U.drugLink(y.d.id)} <span class="muted">${U.actGlyph(y.t.action)}</span>`).join(', ')}</p>`).join('')}` : ''}
+      ${drugsBy.length ? `<details style="margin-top:12px"><summary><b>Medications acting here</b> <span class="muted small">high-affinity targets · ${U.uniq(drugsBy.flatMap(x => x.ds.map(y => y.d.id))).length} drugs</span></summary>${drugsBy.map(x => `<p class="small" style="margin:.3em 0"><b>${U.recLink(x.rid)}</b>: ${x.ds.map(y => `${U.drugLink(y.d.id)} <span class="muted">${U.actGlyph(y.t.action)}</span>`).join(', ')}</p>`).join('')}</details>` : ''}
     </div>`;
   }
 
   function placePanel(d) {
     const ms = U.mechsForDrug(d);
     const circs = U.circuitsForDrug(d);
-    return `<div class="card"><div class="crumbs">Placed on the brain</div><h2>${U.drugLink(d.id)}</h2>
-      ${U.fingerprint(d)}<div style="margin-top:8px">${U.fpLegend()}</div>
-      <h4 style="margin-top:12px">Where it acts</h4><ul class="clean small">${U.targets(d).map(t => { const r = PA.RECEPTOR[t.r]; return r ? `<li>${U.actGlyph(t.action)} <b>${U.recLink(t.r)}</b> → ${(r.regions || []).slice(0, 6).map(U.regLink).join(', ') || '<span class="muted">peripheral / intracellular</span>'}</li>` : ''; }).join('')}</ul>
-      ${circs.length ? `<h4 style="margin-top:12px">Circuits engaged</h4><div class="chips">${circs.map(c => `<a class="chip" href="#/circuits/${c}">${esc(PA.CIRCUIT[c].name)}</a>`).join('')}</div>` : ''}
-      <h4 style="margin-top:12px">Predicted effects</h4><div class="chips">${U.uniq(ms.map(x => x.m.effect)).map(e => `<a class="chip" href="#/effects/${e}">${ms.find(x => x.m.effect === e).m.type === 'ther' ? '✓' : '⚠'} ${esc(PA.EFFECT[e] ? PA.EFFECT[e].name : e)}</a>`).join('')}</div>
-      <p style="margin-top:12px"><a class="btn small primary" href="#/drug/${d.id}">Open full ${esc(d.name)} module →</a></p></div>`;
+    const ts = U.targets(d).map(t => ({ t, k: U.ki(d, t.r) })).sort((a, b) => (a.k && b.k) ? PA.kiValue(a.k) - PA.kiValue(b.k) : (b.t.aff - a.t.aff));
+    const regions = U.regionsForDrug(d);
+    const byGroup = {};
+    Object.keys(regions).forEach(rid => { const R = PA.REGION[rid]; if (R) (byGroup[R.group] = byGroup[R.group] || []).push(rid); });
+    const eff = U.uniq(ms.map(x => x.m.effect));
+    const ther = eff.filter(e => ms.find(x => x.m.effect === e).m.type === 'ther'), adv = eff.filter(e => !ther.includes(e));
+    const chip = e => `<a class="chip" href="#/effects/${e}">${esc(PA.EFFECT[e] ? PA.EFFECT[e].name : e)}</a>`;
+    return `<div class="card"><div class="crumbs">Placed on the brain</div><h2 style="margin-bottom:6px">${U.drugLink(d.id)}</h2><p class="small muted" style="margin-top:0">${esc(d.sub)}</p>
+      <h4>Strongest targets</h4>
+      <div class="place-targets">${ts.slice(0, 6).map(({ t, k }) => `<span>${U.actGlyph(t.action)}</span><span>${U.recLink(t.r)} <span class="muted small">${esc(U.actLabel(t.action).toLowerCase())}</span></span><span class="mono small">${k ? esc(PA.kiText(k)) + ' nM' : esc(PA.AFFINITY[t.aff].label)}</span>`).join('')}</div>
+      ${ts.length > 6 ? `<p class="small muted" style="margin:.4em 0 0">+${ts.length - 6} more on the drug page</p>` : ''}
+      <h4 style="margin-top:14px">Regions engaged</h4>${Object.entries(byGroup).map(([g, ids]) => `<p class="small" style="margin:.25em 0"><span class="muted">${esc(g)}:</span> ${ids.map(U.regLink).join(', ')}</p>`).join('')}
+      ${circs.length ? `<h4 style="margin-top:14px">Circuits</h4><div class="chips">${circs.map(c => `<a class="chip" href="#/circuits/${c}">${esc(PA.CIRCUIT[c].name)}</a>`).join('')}</div>` : ''}
+      <details style="margin-top:14px"><summary><b>Predicted effects</b> <span class="muted small">${ther.length} therapeutic · ${adv.length} adverse</span></summary>
+        <h4 style="margin-top:8px">✓ Therapeutic</h4><div class="chips">${ther.map(chip).join('')}</div>
+        <h4 style="margin-top:8px">⚠ Adverse</h4><div class="chips">${adv.map(chip).join('')}</div></details>
+      <p style="margin-top:14px"><a class="btn small primary" href="#/drug/${d.id}">Open full ${esc(d.name.split(' (')[0])} module →</a></p></div>`;
   }
 
   /* ================= NEUROTRANSMITTER SYSTEMS ================= */

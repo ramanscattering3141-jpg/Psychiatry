@@ -326,7 +326,7 @@ dl.kv dd { margin: 0; }
 .region-list a { display: block; padding: 2px 0; break-inside: avoid; }
 
 /* ---------- Receptor fingerprint ---------- */
-.fp { display: grid; grid-template-columns: 92px 1fr 54px; gap: 3px 8px; align-items: center; font-size: .8rem; }
+.fp { display: grid; grid-template-columns: 92px 1fr 84px; gap: 3px 8px; align-items: center; font-size: .8rem; }
 .fp .rn { color: var(--text-2); text-align: right; font-family: var(--mono); font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fp .bar { height: 14px; background: var(--surface-3); border-radius: 3px; position: relative; overflow: hidden; }
 .fp .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
@@ -601,3 +601,31 @@ button.chip:active { transform: scale(.96); }
 /* reduced motion: switch every animation off */
 .reduced-motion *, .reduced-motion *::before, .reduced-motion *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- Measured Ki table ---------- */
+.kitable { display: grid; gap: 4px; }
+.kirow { display: grid; grid-template-columns: minmax(70px, 120px) 1fr 104px; gap: 8px; align-items: center; font-size: .8rem; }
+.kiname { text-align: right; font-family: var(--mono); font-size: .76rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kibar { height: 12px; background: var(--surface-3); border-radius: 4px; position: relative; overflow: hidden; }
+.kibar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
+.kival { font-size: .76rem; white-space: nowrap; }
+.scell.rc { flex-direction: column; }
+.kin { display: block; font-size: .62rem; line-height: 1; margin-top: 2px; color: var(--text-2); }
+
+/* ---------- Simplified atlas map ---------- */
+svg.simple .region .lbl { font-size: 13px; font-weight: 600; }
+svg.simple .region.small .lbl { font-size: 11px; }
+svg.simple .brain-detail { opacity: .55; }
+svg.simple .region.dim { opacity: .22; }
+svg.simple .region.dim .lbl { opacity: .6; }
+svg.simple .proj { stroke-width: 2.6; }
+.atlas-split { grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr); }
+.atlas-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.atlas-bar .lbl-s { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.atlas-caption { margin: 8px 2px 0; font-size: .85rem; color: var(--text-2); min-height: 1.3em; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 999px; overflow: hidden; }
+.seg button { background: transparent; border: 0; color: var(--text-2); padding: 4px 12px; font: inherit; font-size: .82rem; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); font-weight: 700; }
+.place-targets { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; font-size: .84rem; align-items: center; }
+.place-targets .mono { color: var(--text-2); }
+@media (max-width: 1100px) { .atlas-split { grid-template-columns: 1fr; } }
