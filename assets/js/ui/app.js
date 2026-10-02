@@ -6,11 +6,11 @@
   const NAV = [
     ['Explore', [['', '⌂', 'Home'], ['atlas', 'A', 'Brain Atlas'], ['nt/5HT', 'B', 'Neurotransmitter Systems'], ['receptors', 'C', 'Receptor Atlas'], ['circuits', 'D', 'Psychiatric Circuits']]],
     ['Medications', [['class/antidepressant', 'E', 'Antidepressants'], ['class/antipsychotic', 'F', 'Antipsychotics'], ['class/mood', 'G', 'Mood Stabilizers'], ['class/anxiolytic', 'H', 'Anxiolytics'], ['class/hypnotic', 'I', 'Sedative / Hypnotics'], ['class/adhd', 'J', 'ADHD Medications'], ['class/sud', 'K', 'Substance-Use Pharmacology'], ['class/dementia', 'L', 'Cognitive / Dementia']]],
-    ['Tools', [['compare', 'M', 'Drug Comparison'], ['effects', 'N', 'Side-Effect Explorer'], ['prescriber', 'O', 'Prescriber Mode'], ['whatif', 'P', '"What if…" Simulator']]],
+    ['Tools', [['sort/antipsychotic', '⇅', 'Sort & rank drugs'], ['compare', 'M', 'Drug Comparison'], ['effects', 'N', 'Side-Effect Explorer'], ['prescriber', 'O', 'Prescriber Mode'], ['whatif', 'P', '"What if…" Simulator']]],
     ['Learn', [['drug/mirtazapine', '★', 'Mirtazapine module'], ['drug/clozapine', '★', 'Clozapine module'], ['drug/lithium/mechanism', '★', 'Lithium mechanism map'], ['partial', '◐', 'Partial agonism'], ['learn/timecourse', '⏱', 'Time course'], ['learn/adapt', '⟳', 'Adaptation & tolerance'], ['cases', '✚', 'Clinical cases'], ['quiz', '?', 'Quiz'], ['about', 'ⓘ', 'About & references']]]
   ];
 
-  const ROUTES = { '': V.home, atlas: V.atlas, nt: V.nt, receptors: V.receptors, circuits: V.circuits, class: V.cls, drug: V.drug, compare: V.compare, effects: V.effects, prescriber: V.prescriber, whatif: V.whatif, partial: V.partial, learn: V.learn, cases: V.cases, quiz: V.quiz, about: V.about };
+  const ROUTES = { '': V.home, atlas: V.atlas, nt: V.nt, receptors: V.receptors, circuits: V.circuits, class: V.cls, drug: V.drug, compare: V.compare, sort: V.sorter, effects: V.effects, prescriber: V.prescriber, whatif: V.whatif, partial: V.partial, learn: V.learn, cases: V.cases, quiz: V.quiz, about: V.about };
 
   function buildNav() {
     U.$('#nav').innerHTML = NAV.map(([g, items]) => `<div class="nav-group">${esc(g)}</div>${items.map(([h, k, t]) => `<a href="#/${h}" data-nav="${h}"><span class="key">${esc(k)}</span>${esc(t)}</a>`).join('')}`).join('');
@@ -27,8 +27,9 @@
     const parts = raw.split('/').filter(Boolean).map(decodeURIComponent);
     const key = parts[0] || '';
     const view = ROUTES[key] || V.home;
-    const el = U.$('#page');
-    el.innerHTML = '';
+    // fresh container per route: drops any listeners a previous view attached
+    const old = U.$('#page'); const el = old.cloneNode(false); old.replaceWith(el);
+    el.classList.add('enter');
     try { view(el, parts.slice(1)); } catch (e) { console.error(e); el.innerHTML = `<div class="notice bad">Something went wrong rendering this page: ${esc(e.message)}</div>`; }
     el.insertAdjacentHTML('beforeend', `<div class="foot">${esc(PA.DISCLAIMER)} · Prescribing data condensed from Stahl's Prescriber's Guide (7th ed., 2021) · Mechanistic references via PubMed.</div>`);
     markNav(raw);

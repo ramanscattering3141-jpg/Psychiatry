@@ -105,10 +105,10 @@
     steps.forEach((s, i) => {
       const [k, t] = s;
       const kind = k === 'clinical' ? 'clinical' + (thera ? ' thera' : '') : k;
-      html += `<div class="step k-${kind}" role="listitem"><span class="lvl">${esc(PA.STEP_KINDS[k] || k)}</span>${esc(t)}</div>`;
+      html += `<div class="step k-${kind}" role="listitem" style="--i:${i}"><span class="lvl">${esc(PA.STEP_KINDS[k] || k)}</span>${esc(t)}</div>`;
       if (i < steps.length - 1) {
         const whyIdx = opts.drug ? i - 1 : i;
-        html += `<div class="arrow">${whyIdx >= 0 ? `<button class="why" data-why="${m.id}" data-why-step="${whyIdx}" aria-label="Why does this step lead to the next?">WHY?</button>` : ''}<span aria-hidden="true">→</span></div>`;
+        html += `<div class="arrow" style="--i:${i}">${whyIdx >= 0 ? `<button class="why" data-why="${m.id}" data-why-step="${whyIdx}" aria-label="Why does this step lead to the next?">WHY?</button>` : ''}<span aria-hidden="true">→</span></div>`;
       }
     });
     html += `</div>`;
@@ -117,7 +117,7 @@
     return html;
   };
   U.chainFromArray = function (arr, kinds) {
-    return `<div class="chain">` + arr.map((t, i) => `<div class="step k-${kinds ? kinds[i] : (i === 0 ? 'drug' : i === arr.length - 1 ? 'clinical' : 'signal')}">${esc(t)}</div>${i < arr.length - 1 ? '<div class="arrow"><span aria-hidden="true">→</span></div>' : ''}`).join('') + `</div>`;
+    return `<div class="chain">` + arr.map((t, i) => `<div class="step k-${kinds ? kinds[i] : (i === 0 ? 'drug' : i === arr.length - 1 ? 'clinical' : 'signal')}" style="--i:${i}">${esc(t)}</div>${i < arr.length - 1 ? `<div class="arrow" style="--i:${i}"><span aria-hidden="true">→</span></div>` : ''}`).join('') + `</div>`;
   };
 
   /* WHY modal */

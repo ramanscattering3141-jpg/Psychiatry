@@ -13,6 +13,7 @@
       ['C', '#/receptors', 'Receptor Atlas', 'Signalling, location, pre vs post, drugs.'],
       ['D', '#/circuits', 'Psychiatric Circuits', 'Dopamine pathways, reward, sleep–wake, orexin, inverted-U.'],
       ['E–L', '#/class/antidepressant', 'Drug classes', 'Antidepressants → dementia pharmacology.'],
+      ['⇅', '#/sort/antipsychotic', 'Sort & rank antipsychotics', 'Re-rank by any receptor or side effect — watch the rows move.'],
       ['M', '#/compare', 'Compare drugs', 'Fingerprints side-by-side, click an adverse effect.'],
       ['N', '#/effects', 'Side-effect explorer', 'Symptom → receptor → drug → why.'],
       ['O', '#/prescriber', 'Prescriber mode', 'Dosing, PK, monitoring (Stahl-based).'],
@@ -30,7 +31,7 @@
           <b>Off-target receptor</b> → physiological consequence → <b>adverse effect</b></div>
         <div class="row" style="margin-top:16px"><a class="btn primary" href="#/drug/mirtazapine">Start with a drug: mirtazapine</a><a class="btn" href="#/receptors/H1">Start with a receptor: H1</a><a class="btn" href="#/effects/akathisia">Start with a symptom: akathisia</a><a class="btn" href="#/atlas/nac">Start with a region: NAc</a></div>
       </div><div class="brain-frame" aria-hidden="true">${brainHtml}</div></div>
-      <div class="grid g4">${tiles.map(([k, h, t, p]) => `<a class="tile" href="${h}"><span class="tk">${k}</span><h3>${esc(t)}</h3><p>${esc(p)}</p></a>`).join('')}</div>
+      <div class="grid g4">${tiles.map(([k, h, t, p], i) => `<a class="tile" href="${h}" style="--tc:${['var(--nt-DA)', 'var(--nt-5HT)', 'var(--nt-NE)', 'var(--nt-GABA)', 'var(--nt-GLU)', 'var(--nt-ACH)', 'var(--nt-HIS)', 'var(--nt-ORX)', 'var(--nt-OPI)', 'var(--nt-MEL)', 'var(--nt-ECB)', 'var(--nt-DA)', 'var(--nt-5HT)'][i % 13]}"><span class="tk">${k}</span><h3>${esc(t)}</h3><p>${esc(p)}</p></a>`).join('')}</div>
       <div class="grid g2" style="margin-top:22px">
         <div class="card"><h3>Evidence tags used throughout</h3><ul class="clean">${Object.keys(PA.EVIDENCE).map(k => `<li>${U.ev(k)} <span class="small muted">${esc(PA.EVIDENCE[k].desc)}</span></li>`).join('')}</ul></div>
         <div class="card"><h3>An important scientific principle</h3>

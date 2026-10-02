@@ -194,8 +194,8 @@
       return { kind: 'Circuit identification (click the brain)', q: `Where does "${m.chain[0][1]}" act to produce ${PA.EFFECT[m.effect].name.toLowerCase()}? Click the region.`, map: m.regions, explain: m };
     },
     receptor() {
-      const d = rnd(PA.DRUGS.filter(x => !x.substance && U.mechsForDrug(x).some(y => y.m.target && y.m.type === 'adv')));
-      const x = rnd(U.mechsForDrug(d).filter(y => y.m.target && y.m.type === 'adv'));
+      const d = rnd(PA.DRUGS.filter(x => !x.substance && U.mechsForDrug(x).some(y => y.m.target && y.t && y.m.type === 'adv')));
+      const x = rnd(U.mechsForDrug(d).filter(y => y.m.target && y.t && y.m.type === 'adv'));
       const correct = `${PA.rl(x.m.target)} ${PA.ACTIONS[x.t.action].verb}`;
       const wrong = shuffle(U.targets(d).filter(t => !U.mechsForDrug(d).some(y => y.m.effect === x.m.effect && y.m.target === t.r)).map(t => `${PA.rl(t.r)} ${PA.ACTIONS[t.action].verb}`).concat(['5-HT3 antagonism', 'MAO-B inhibition', 'NMDA blockade'])).filter(o => o !== correct).slice(0, 3);
       return { kind: 'Receptor identification', q: `Which action of ${d.name} best explains ${PA.EFFECT[x.m.effect].name.toLowerCase()}?`, opts: shuffle([correct, ...wrong]), a: correct, explain: x.m };
