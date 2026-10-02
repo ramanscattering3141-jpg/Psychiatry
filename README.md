@@ -28,6 +28,7 @@ The app is a static site with no build step and no dependencies.
 | E–L Drug classes | `#/class/<cls>` | Antipsychotic receptor-fingerprint matrix and side-effect mechanism map; ADHD target × region table; reward-circuit drug placer |
 | Drug modules | `#/drug/<id>/<tab>` | 94 agents. Radial receptor map, fingerprint, brain view, therapeutic/adverse chains with **WHY?** on every arrow, dose & time course, prescribing information, references |
 | Flagships | mirtazapine · clozapine · lithium | α2 auto/heteroreceptor synapses and the conceptual dose explorer; clozapine's "multifactorial / incompletely established" toxicity map; lithium mechanism network |
+| ⇅ Sort & rank | `#/sort/<class>` | Rank antipsychotics (or any class) by any receptor's affinity, any side-effect rating, half-life or a 5-HT2A−D2 index; filter by D2 action (antagonist/partial agonist/none); "Ask" presets such as *Which cause the most weight gain?* re-sort and explain which receptor columns account for the ranking. Rows animate into their new order |
 | M Compare | `#/compare/a,b,c` | 2–4 drugs; click an adverse effect to highlight the receptors that explain the difference |
 | N Side-effect explorer | `#/effects/<id>` | Symptom → mechanisms → drugs → why → monitoring; symptom↔drug traces |
 | O Prescriber mode | `#/prescriber` | Dosing/PK/renal/hepatic/monitoring table. When the toggle is on, drug pages open on prescribing information |
@@ -42,6 +43,7 @@ Global search (press `/`) covers regions, receptors (`H1`, `D2`, `α2`, `mu`…)
 * **Evidence tags on every mechanism.** Each chain carries one of: *Established pharmacology*, *Strong experimental evidence*, *Clinical association*, *Proposed mechanism*, *Mechanism incompletely understood*, *Simplified teaching model*. Effects without a single-receptor explanation are labelled as such; the app doesn't invent one.
 * **No fake precision.** Receptor fingerprints use qualitative 1–4 affinity grades, not occupancy. The dose explorers show Low/Moderate/High *conceptual* engagement and say so. The only numerical occupancy values cited are from PET studies (Kapur 2000; Meyer 2004; Volkow 1998).
 * **Not "one transmitter = one disease".** Depression ≠ low serotonin, and schizophrenia ≠ too much dopamine. Simplified models are flagged.
+* **Motion with purpose.** Mechanism chains cascade in step by step, bars and meters grow, highlighted regions pulse, transmitter flow is animated along projections, and sorted rows glide to their new rank. All of it switches off under the reduced-motion toggle or `prefers-reduced-motion`.
 * **Accessibility.** Colour is never the only cue: transmitters have line styles, drug actions have shapes and glyphs, and evidence levels have glyphs and text. Every map region is a focusable button with a text-list alternative. There is a reduced-motion toggle, and `prefers-reduced-motion` is honoured. Light and dark themes are both available.
 
 ## Data architecture
